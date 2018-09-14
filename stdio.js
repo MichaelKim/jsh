@@ -1,40 +1,41 @@
-const stdin = (function() {
-  let cbPress = {};
-  let cbEnter = {};
+function debug(test) {
+  console.log("FROM MAIN:", test);
+}
 
-  const keyboard = document.getElementById("keyboard");
-  keyboard.addEventListener("keypress", event => {
-    console.log("press", event.key);
-    Object.values(cbPress).forEach(cb => cb(event));
+function InputStream(source) {
+  let buffer = [];
+  let readCallback = null;
 
-    if (event.key === "Enter") {
-      const text = keyboard.value;
-      keyboard.value = "";
-      Object.values(cbEnter).forEach(cb => cb(text));
-    }
-  });
+  this.read = function() {
+    return new Promise(resolve => {
+      if (buffer.length > 0) {
+        debug("inputstream: read from buffer");
+        const str = buffer.shift();
+        resolve(str);
+      } else {
+        debug("inputstream: waiting read from callback");
+        readCallback = resolve;
+      }
+    });
+  };
 
-  return {
-    onPress: function(callback) {
-      const id = Date.now();
-      cbPress[id] = callback;
-      return id;
-    },
-    onEnter: function(callback) {
-      const id = Date.now();
-      cbEnter[id] = callback;
-      return id;
-    },
-    cancel: function(id) {
-      delete cbPress[id];
-      delete cbEnter[id];
+  this.send = function(str) {
+    debug('inputstream: received "' + str + '"');
+    if (readCallback) {
+      debug("inputstream: send to callback");
+      readCallback(str);
+      readCallback = null;
+    } else {
+      debug("inputstream: save to buffer");
+      buffer.push(str);
     }
   };
-})();
 
-const stdout = {
-  screen: document.getElementById("screen"),
-  print: function(...text) {
-    this.screen.innerHTML += "\n" + text.join(" ");
-  }
-};
+  if (source) source.recieve(this.send);
+}
+
+function OutputStream(sink) {
+  this.print = function(str) {
+    sink.send(str);
+  };
+}
