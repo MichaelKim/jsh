@@ -121,6 +121,17 @@ function ProcessPool() {
     });
   }
 
+  let spawnMultipleCallback = null;
+  function spawnMultiple(...bodies) {
+    return new Promise(resolve => {
+      postMessage({
+        type: 'SPAWN_MULTIPLE',
+        bodies: bodies.join('@@@')
+      });
+      spawnMultipleCallback = resolve;
+    });
+  }
+
   function start(pid) {
     postMessage({
       type: 'START_OTHER',
@@ -164,6 +175,12 @@ function ProcessPool() {
         spawnCallback(pid);
         spawnCallback = null;
       }
+    } else if (e.data.type === 'SPAWN_MULTIPLE_RETURN') {
+      const pids = e.data.value;
+      if (spawnMultipleCallback) {
+        spawnMultipleCallback(pids);
+        spawnMultipleCallback = null;
+      }
     } else if (e.data.type === 'WAIT_RETURN') {
       if (waitCallback) {
         waitCallback();
@@ -193,12 +210,12 @@ function ProcessPool() {
         const childSource = e.data.source;
         const childSink = e.data.sink;
 
-        let childStdin = null;
+        let childStdin = stdin;
         if (childSource) {
           childStdin = new InputStream(deserialize(childSource));
         }
 
-        let childStdout = null;
+        let childStdout = stdout;
         if (childSink) {
           childStdout = new OutputStream(deserialize(childSink));
         }
@@ -209,6 +226,26 @@ function ProcessPool() {
         worker.postMessage({
           type: "SPAWN_RETURN",
           value: childPid
+        });
+      } else if (e.data.type === "SPAWN_MULTIPLE") {
+        const bodies = e.data.bodies.split("@@@");
+        let pids = [];
+
+        let childSink = null;
+        for (let i = bodies.length - 1; i >= 0; i--) {
+          const childBody = bodies[i];
+          const childStdin = i === 0 ? stdin : new InputStream();
+          const childStdout =
+            i === bodies.length - 1 ? stdout : new OutputStream(childSink);
+          const childPid = createProcess(childStdin, childStdout, childBody);
+          pids.unshift(childPid);
+
+          childSink = childStdin;
+        }
+
+        worker.postMessage({
+          type: "SPAWN_MULTIPLE_RETURN",
+          value: pids
         });
       } else if (e.data.type === "WAIT") {
         const pid = e.data.value;

@@ -6,6 +6,8 @@ function InputStream(source) {
   let buffer = [];
   let readCallback = null;
 
+  this.source = source;
+
   this.read = function() {
     return new Promise(resolve => {
       if (buffer.length > 0) {
@@ -35,6 +37,7 @@ function InputStream(source) {
 }
 
 function OutputStream(sink) {
+  this.sink = sink;
   this.print = function(str) {
     sink.send(str);
   };
