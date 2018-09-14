@@ -1,182 +1,3 @@
-function Process(pid, stdin, stdout, body) {
-  this.pid = pid;
-
-  let finishCallback = null;
-  const blob = new Blob([
-    `
-function debug(test) {
-  console.log("FROM ${pid}:", test);
-}
-
-function InputStream(source) {
-  let buffer = [];
-  let readCallback = null;
-
-  this.read = function() {
-    return new Promise(resolve => {
-      if (buffer.length > 0) {
-        debug("inputstream: read from buffer");
-        const str = buffer.shift();
-        resolve(str);
-      } else {
-        debug("inputstream: waiting read from callback");
-        postMessage({
-          type: 'READ'
-        });
-        readCallback = resolve;
-      }
-    });
-  };
-
-  this.send = function(str) {
-    debug('inputstream: received "' + str + '"');
-    if (readCallback) {
-      debug("inputstream: send to callback");
-      readCallback(str);
-      readCallback = null;
-    } else {
-      debug("inputstream: save to buffer");
-      buffer.push(str);
-    }
-  };
-
-  if (source) source.recieve(this.send);
-}
-
-function OutputStream(sink) {
-  this.print = function(str) {
-    sink.send(str);
-  };
-}
-
-const stdin = new InputStream({
-  recieve: function(callback) {
-    addEventListener('message', e => {
-      if (e.data.type === 'READ_RETURN') {
-        const str = e.data.value;
-        callback(str);
-      }
-    });
-  }
-});
-
-const stdout = new OutputStream({
-  send: function(str) {
-    postMessage({
-      type: 'PRINT',
-      value: str
-    });
-  }
-});
-
-let spawnCallback = null;
-async function spawn(body) {
-  return new Promise(resolve => {
-    postMessage({
-      type: 'SPAWN',
-      value: body.toString()
-    });
-    spawnCallback = resolve;
-  });
-}
-
-let waitCallback = null;
-async function wait(pid) {
-  return new Promise(resolve => {
-    postMessage({
-      type: 'WAIT',
-      value: pid
-    });
-    waitCallback = resolve;
-  });
-}
-
-addEventListener('message', async e => {
-  if (e.data.type === 'START') {
-    const body = ${body.toString()};
-    const std = {
-      pid: ${pid},
-      read: stdin.read,
-      print: stdout.print,
-      test: function(str) {
-        stdout.print('TESTING GLOBAL: ' + str);
-      },
-      spawn: spawn,
-      wait: wait
-    };
-    await body(std);
-    postMessage({
-      type: 'FINISH'
-    });
-  } else if (e.data.type === 'SPAWN_RETURN') {
-    const pid = e.data.value;
-    if (spawnCallback) {
-      spawnCallback(pid);
-      spawnCallback = null;
-    }
-  } else if (e.data.type === 'WAIT_RETURN') {
-    if (waitCallback) {
-      waitCallback();
-      waitCallback = null;
-    }
-  }
-});
-  `
-  ]);
-  const blobURL = window.URL.createObjectURL(blob);
-  const worker = new Worker(blobURL);
-
-  worker.onmessage = async e => {
-    if (e.data.type === "READ") {
-      debug("await reading");
-      const text = await stdin.read();
-      worker.postMessage({
-        type: "READ_RETURN",
-        value: text
-      });
-    } else if (e.data.type === "PRINT") {
-      const text = e.data.value;
-      stdout.print(text);
-    } else if (e.data.type === "SPAWN") {
-      const body = e.data.value;
-      const childPid = createProcess(stdin, stdout, body);
-
-      debug("created child process: " + childPid);
-
-      worker.postMessage({
-        type: "SPAWN_RETURN",
-        value: childPid
-      });
-    } else if (e.data.type === "WAIT") {
-      const pid = e.data.value;
-      if (processList[pid]) {
-        processList[pid].callback.push(() =>
-          worker.postMessage({ type: "WAIT_RETURN" })
-        );
-      }
-    } else if (e.data.type === "FINISH") {
-      this.close();
-    }
-  };
-
-  this.start = function() {
-    worker.postMessage({
-      type: "START"
-    });
-  };
-
-  this.onFinish = function(callback) {
-    finishCallback = callback;
-  };
-
-  this.close = function() {
-    debug("closing " + this.pid);
-    window.URL.revokeObjectURL(blobURL);
-    worker.terminate();
-    if (finishCallback) finishCallback();
-  };
-}
-
 // From keyboard
 const source = {
   recieve: function(callback) {
@@ -205,28 +26,8 @@ const sink = {
 const stdin = new InputStream(source);
 const stdout = new OutputStream(sink);
 
-const processList = {};
-function createProcess(stdin, stdout, body) {
-  let pid = (Math.random() * 1000) | 0;
-  while (processList[pid]) {
-    pid = (Math.random() * 1000) | 0;
-  }
-
-  const p = new Process(pid, stdin, stdout, body);
-  processList[pid] = {
-    process: p,
-    callback: []
-  };
-  p.onFinish(() => {
-    debug("running callbacks for " + pid);
-    processList[pid].callback.forEach(cb => cb());
-  });
-  p.start();
-
-  return pid;
-}
-
-const pid = createProcess(stdin, stdout, async function(std) {
+const pool = new ProcessPool();
+const mainPID = pool.createProcess(stdin, stdout, async function(std) {
   // Shell
   std.print("RUNNING PROCESS: " + std.pid);
   let str = await std.read();
@@ -258,10 +59,49 @@ const pid = createProcess(stdin, stdout, async function(std) {
     //
     // await std.wait(pid2);
 
+    // I/O Redirection test
+    const childSource = {
+      recieve: function(callback) {
+        const keyboard = document.getElementById("keyboard2");
+        keyboard.addEventListener("keypress", event => {
+          debug("mainInput: press", event.key);
+
+          if (event.key === "Enter") {
+            const text = keyboard.value;
+            keyboard.value = "";
+            debug('mainInput: send "' + text + '"');
+            callback(text);
+          }
+        });
+      }
+    };
+
+    const childSink = {
+      send: function(str) {
+        const screen = document.getElementById("screen");
+        screen.innerHTML += "\n" + "OVERRIDDEN: " + str;
+      }
+    };
+
+    const pid4 = await spawn(
+      async std4 => {
+        const char4 = await std4.read();
+        std4.print("RUNNING CHILD PROCESS 4: " + std4.pid + " " + char4);
+      },
+      childSource,
+      childSink
+    );
+
+    std.start(pid4);
+
+    await std.wait(pid4);
+
     let str = await std.read();
     [cmd, ...args] = str.split(" ");
   }
 });
+
+pool.startProcess(mainPID);
 
 // const stdin = new InputStream(source);
 // const stdin2 = new InputStream();
