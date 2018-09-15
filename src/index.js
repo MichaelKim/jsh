@@ -1,9 +1,23 @@
+// @flow
+
+const ProcessPool = require("./process");
+const { InputStream, OutputStream, debug } = require("./stdio");
+
+import type {
+  InputStream as IS,
+  OutputStream as OS,
+  ProcessPoolType
+} from "./types";
+import type { Source, Sink } from "./types";
+
 // From keyboard
-const source = {
+const source: Source = {
   recieve: function(callback) {
     const keyboard = document.getElementById("keyboard");
-    keyboard.addEventListener("keypress", event => {
-      debug("mainInput: press", event.key);
+    if (!keyboard || !(keyboard instanceof HTMLInputElement)) return;
+
+    keyboard.addEventListener("keypress", (event: KeyboardEvent) => {
+      debug("mainInput: press " + event.key);
 
       if (event.key === "Enter") {
         const text = keyboard.value;
@@ -16,17 +30,19 @@ const source = {
 };
 
 // To screen
-const sink = {
-  send: function(str) {
+const sink: Sink = {
+  send: function(str: string) {
     const screen = document.getElementById("screen");
+    if (!screen || !(screen instanceof HTMLTextAreaElement)) return;
+
     screen.innerHTML += "\n" + str;
   }
 };
 
-const stdin = new InputStream(source);
-const stdout = new OutputStream(sink);
+const stdin: IS = new InputStream(source);
+const stdout: OS = new OutputStream(sink);
 
-const pool = new ProcessPool();
+const pool: ProcessPoolType = new ProcessPool();
 const mainPID = pool.createProcess(stdin, stdout, async function(std) {
   // Shell
   std.print("RUNNING PROCESS: " + std.pid);
@@ -37,7 +53,7 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
     std.test(cmd + ": " + args.join(","));
 
     // Spawn & Wait test
-    // const pid2 = await spawn(async std2 => {
+    // const pid2 = await std.spawn(async std2 => {
     //   std2.print("RUNNING CHILD PROCESS 2: " + std2.pid);
     //   return new Promise(resolve => {
     //     setTimeout(() => {
@@ -46,25 +62,28 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
     //     }, 1000);
     //   });
     // });
+    // std.start(pid2);
     // std.print("waiting for child");
     // await std.wait(pid2);
     // std.print("done waiting");
 
     // Spawn & Read test
-    // const pid3 = await spawn(async std3 => {
+    // const pid3 = await std.spawn(async std3 => {
     //   std3.print("RUNNING CHILD PROCESS 3: " + std3.pid);
     //   const char = await std3.read();
     //   std3.print("READ BY CHILD 3: " + char);
     // });
     //
-    // await std.wait(pid2);
+    // std.start(pid3);
+    // await std.wait(pid3);
 
     // I/O Redirection test
     // const childSource = {
     //   recieve: function(callback) {
     //     const keyboard = document.getElementById("keyboard2");
-    //     keyboard.addEventListener("keypress", event => {
-    //       debug("mainInput: press", event.key);
+    //     if (!keyboard || !(keyboard instanceof HTMLInputElement)) return;
+    //     keyboard.addEventListener("keypress", (event: KeyboardEvent) => {
+    //       debug("mainInput: press " + event.key);
     //
     //       if (event.key === "Enter") {
     //         const text = keyboard.value;
@@ -79,11 +98,12 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
     // const childSink = {
     //   send: function(str) {
     //     const screen = document.getElementById("screen");
+    //     if (!screen || !(screen instanceof HTMLTextAreaElement)) return;
     //     screen.innerHTML += "\n" + "OVERRIDDEN: " + str;
     //   }
     // };
     //
-    // const pid4 = await spawn(
+    // const pid4 = await std.spawn(
     //   async std4 => {
     //     const char4 = await std4.read();
     //     std4.print("RUNNING CHILD PROCESS 4: " + std4.pid + " " + char4);
@@ -97,7 +117,7 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
     // await std.wait(pid4);
 
     // Piping test
-    const pids = await spawnMultiple(
+    const pids = await std.spawnMultiple(
       async std5 => {
         const char5 = await std5.read();
         std5.print("RUNNING CHILD PROCESS 5: " + std5.pid + " " + char5);
