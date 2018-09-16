@@ -4,7 +4,7 @@
   "description": "A Unix shell written in JavaScript",
   "main": "src/index.js",
   "scripts": {
-    "test": "flow check && jest test/",
+    "test": "flow check && jest --no-watchman test/",
     "dev": "webpack --mode=development --progress --watch"
   },
   "repository": {
@@ -31,5 +31,11 @@
     "jest": "^23.6.0",
     "webpack": "^4.19.0",
     "webpack-cli": "^3.1.0"
+  },
+  "jest": {
+    "transform": {
+      "worker\\.js": "<rootDir>/test/workerTransform.js",
+      "^.+\\.js$": "babel-jest"
+    }
   }
 }

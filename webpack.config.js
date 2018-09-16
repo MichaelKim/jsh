@@ -1,7 +1,7 @@
 const path = require("path");
 
 module.exports = {
-  entry: "./src/index.js",
+  entry: path.resolve(__dirname, "src/index.js"),
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "main.js"
@@ -16,7 +16,7 @@ module.exports = {
         }
       },
       {
-        test: /src\/worker.js$/,
+        test: /src\/worker\.js$/,
         exclude: /node_modules/,
         use: {
           loader: path.resolve(__dirname, "loaders/worker-loader")

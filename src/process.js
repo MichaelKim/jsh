@@ -106,9 +106,7 @@ function ProcessPool(): ProcessPoolType {
 
     function start() {
       worker.postMessage({
-        type: "START",
-        pid: pid,
-        body: body.toString()
+        type: "START"
       });
     }
 
