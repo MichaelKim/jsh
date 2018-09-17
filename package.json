@@ -2,7 +2,7 @@
   "name": "jsh",
   "version": "0.1.0",
   "description": "A Unix shell written in JavaScript",
-  "main": "src/index.js",
+  "main": "dist/jsh.js",
   "scripts": {
     "test": "flow check && jest --no-watchman test/",
     "dev": "webpack --mode=development --progress --watch"
