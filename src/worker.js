@@ -25,17 +25,22 @@ type MessageData =
       +value: string
     |};
 
+// Flow thinks this file exports nothing when required, but actually
+// it is passed through a loader by webpack and returns a string.
+/*::
+  module.exports = '';
+*/
+
 // Start of web worker code
 (_pid: PID, _body: string) => {
+  // Flow types for methods in the worker global scope.
   /*::
-  const self: {
-    postMessage: (data: any) => void,
-    addEventListener: (
-      type: "message",
-      callback: (e: MessageEvent) => (void | Promise<void>)
-    ) => void
-  };
-  const eval: string => Function;
+  const postMessage: (data: any) => void = () => {};
+  const addEventListener: (
+    type: "message",
+    callback: (e: MessageEvent) => void | Promise<void>
+  ) => void = () => {};
+  const eval: string => Function = () => () => {};
   */
 
   function debug(test) {
@@ -54,7 +59,7 @@ type MessageData =
           resolve(str);
         } else {
           debug("inputstream: waiting read from callback");
-          self.postMessage({
+          postMessage({
             type: "READ"
           });
           readCallback = resolve;
@@ -85,7 +90,7 @@ type MessageData =
 
   const stdin = new InputStream({
     recieve: function(callback) {
-      self.addEventListener("message", (e: MessageEvent) => {
+      addEventListener("message", (e: MessageEvent) => {
         if (e.data.type === "READ_RETURN") {
           const str = e.data.value;
           callback(str);
@@ -97,7 +102,7 @@ type MessageData =
   const stdout = new OutputStream({
     send: function(str) {
       debug("PRINTING " + str);
-      self.postMessage({
+      postMessage({
         type: "PRINT",
         value: str
       });
@@ -108,7 +113,7 @@ type MessageData =
   async function spawn(body: ProcessBody, source: ?Source, sink: ?Sink) {
     return new Promise(resolve => {
       spawnCallback = resolve;
-      self.postMessage({
+      postMessage({
         type: "SPAWN",
         body: body.toString(),
         source: source ? serialize(source) : null,
@@ -121,7 +126,7 @@ type MessageData =
   async function wait(pid: PID) {
     return new Promise(resolve => {
       waitCallback = resolve;
-      self.postMessage({
+      postMessage({
         type: "WAIT",
         value: pid
       });
@@ -132,7 +137,7 @@ type MessageData =
   function spawnMultiple(...bodies: Array<ProcessBody>) {
     return new Promise(resolve => {
       spawnMultipleCallback = resolve;
-      self.postMessage({
+      postMessage({
         type: "SPAWN_MULTIPLE",
         bodies: bodies.join("@@@")
       });
@@ -140,13 +145,13 @@ type MessageData =
   }
 
   function start(pid: PID) {
-    self.postMessage({
+    postMessage({
       type: "START_OTHER",
       value: pid
     });
   }
 
-  function serialize(obj) {
+  function serialize(obj: { +[string]: Function }): string {
     return JSON.stringify(
       Object.keys(obj).reduce(
         (acc, key) =>
@@ -158,7 +163,7 @@ type MessageData =
     );
   }
 
-  self.addEventListener("message", async (e: MessageEvent) => {
+  addEventListener("message", async (e: MessageEvent) => {
     if (e.data.type === "START") {
       const body: ProcessBody = eval("(" + _body + ")");
       const std = {
@@ -174,7 +179,7 @@ type MessageData =
         spawnMultiple: spawnMultiple
       };
       await body(std);
-      self.postMessage({
+      postMessage({
         type: "FINISH"
       });
     } else if (e.data.type === "SPAWN_RETURN") {

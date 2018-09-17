@@ -18,7 +18,7 @@ export type OutputStream = {|
   +print: (str: string) => void
 |};
 
-export type ProcessBody = ((std: StdLib) => Promise<void>) | string;
+export type ProcessBody = ((std: StdLib) => Promise<void>);
 
 export type ProcessPoolType = {|
   +createProcess: (

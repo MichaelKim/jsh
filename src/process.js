@@ -14,6 +14,17 @@ import type {
   ProcessBody
 } from "./types";
 
+/*::
+let window: {|
+  URL: {
+    createObjectURL: (blob: Blob) => string,
+    revokeObjectURL: (blobURL: string) => void
+  }
+|};
+
+let eval: string => Function;
+*/
+
 function ProcessPool(): ProcessPoolType {
   const _processList: {
     [pid: PID]: {
@@ -26,7 +37,7 @@ function ProcessPool(): ProcessPoolType {
     pid: PID,
     stdin: IS,
     stdout: OS,
-    body: ProcessBody
+    body: ProcessBody | string
   ): ProcessType {
     let _finishCallback = null;
     const blob = new Blob([generateWebWorkerCode(pid, body)]);
@@ -131,7 +142,7 @@ function ProcessPool(): ProcessPoolType {
   function createProcess(
     stdin: IS,
     stdout: OS,
-    body: ((std: StdLib) => Promise<void>) | string
+    body: ProcessBody | string
   ): PID {
     const pid = _generateNewPID();
 
@@ -175,7 +186,7 @@ function ProcessPool(): ProcessPoolType {
 }
 
 function deserialize(str: string): Object {
-  const parsed = JSON.parse(str);
+  const parsed: { [string]: string } = JSON.parse(str);
   return Object.keys(parsed).reduce(
     (acc, key) => ({ ...acc, [key]: eval("(" + parsed[key] + ")") }),
     {}
