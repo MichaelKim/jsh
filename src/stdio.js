@@ -8,7 +8,9 @@ import type {
 } from "./types";
 
 function debug(test: string): void {
-  console.log("FROM MAIN:", test);
+  if (process.env.NODE_ENV === "development") {
+    console.log("FROM MAIN:", test);
+  }
 }
 
 function InputStream(source?: Source): IS {

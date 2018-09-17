@@ -4,8 +4,9 @@
   "description": "A Unix shell written in JavaScript",
   "main": "dist/jsh.js",
   "scripts": {
-    "test": "flow check && jest --no-watchman test/",
-    "dev": "webpack --mode=development --progress --watch"
+    "test": "flow check && jest --no-cache --no-watchman test/",
+    "dev": "webpack --mode=development --progress --watch",
+    "prod": "webpack -p --progress"
   },
   "repository": {
     "type": "git",
@@ -20,7 +21,6 @@
   "dependencies": {},
   "devDependencies": {
     "@babel/core": "^7.0.1",
-    "@babel/plugin-proposal-class-properties": "^7.0.0",
     "@babel/plugin-proposal-object-rest-spread": "^7.0.0",
     "@babel/plugin-transform-flow-strip-types": "^7.0.0",
     "@babel/preset-env": "^7.0.0",

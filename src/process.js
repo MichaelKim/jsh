@@ -1,7 +1,7 @@
 // @flow
 
 const { InputStream, OutputStream, debug } = require("./stdio");
-const workerFile: string = require("./worker");
+const workerCode: string = require("./worker");
 
 import type {
   InputStream as IS,
@@ -9,11 +9,17 @@ import type {
   ProcessPoolType,
   ProcessType,
   ProcessMessageData,
+  WorkerMessageData,
   PID,
   StdLib,
   ProcessBody
 } from "./types";
 
+declare interface MyWorker extends Worker {
+  postMessage(message: WorkerMessageData): void;
+}
+
+// Flow stubs for window and eval
 /*::
 let window: {|
   URL: {
@@ -25,7 +31,9 @@ let window: {|
 let eval: string => Function;
 */
 
-function ProcessPool(): ProcessPoolType {
+function ProcessPool(
+  globals: { [string]: (...any) => Promise<any> } = {}
+): ProcessPoolType {
   const _processList: {
     [pid: PID]: {
       process: ProcessType,
@@ -40,9 +48,11 @@ function ProcessPool(): ProcessPoolType {
     body: ProcessBody | string
   ): ProcessType {
     let _finishCallback = null;
-    const blob = new Blob([generateWebWorkerCode(pid, body)]);
+    const blob = new Blob([
+      generateWebWorkerCode(pid, body, Object.keys(globals))
+    ]);
     const blobURL = window.URL.createObjectURL(blob);
-    const worker = new Worker(blobURL);
+    const worker: MyWorker = new Worker(blobURL);
 
     worker.onmessage = async e => {
       const data: ProcessMessageData = (e.data: any);
@@ -111,6 +121,17 @@ function ProcessPool(): ProcessPoolType {
         const pid = data.value;
         debug("STARTING PROCESS " + pid);
         startProcess(pid);
+      } else if (data.type === "GLOBAL") {
+        const name = data.name;
+        const args = data.args;
+        if (globals[name]) {
+          const returnVal = await globals[name](...args);
+          worker.postMessage({
+            type: "GLOBAL_RETURN",
+            name: name,
+            value: returnVal
+          });
+        }
       } else if (data.type === "FINISH") {
         close();
       }
@@ -193,8 +214,16 @@ function deserialize(str: string): Object {
   );
 }
 
-function generateWebWorkerCode(pid: PID, body) {
-  return `(${workerFile})(${pid}, String(${body.toString()}))`;
+function generateWebWorkerCode(pid: PID, body, globalNames: Array<string>) {
+  return `(
+    (_pid, _body, _globalNames) => {
+      ${workerCode}
+    }
+  )(
+    ${pid},
+    String(${body.toString()}),
+    [${globalNames.map(g => `"${g}"`).toString()}]
+  )`;
 }
 
 module.exports = ProcessPool;

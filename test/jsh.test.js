@@ -97,7 +97,6 @@ describe("ProcessPool", () => {
     const stdout = new OutputStream(sink);
 
     const pid = pool.createProcess(stdin, stdout, async std => {
-      console.log("ASDFASDFASDFASDF", std.pid);
       const pid2 = await std.spawn(async std2 => {
         std2.print("boo");
         return new Promise(resolve => {
@@ -212,5 +211,29 @@ describe("ProcessPool", () => {
     await pool.waitProcess(pid);
 
     expect(sink.send.mock.calls).toEqual([["765hello world"]]);
+  });
+
+  it("custom global function", async () => {
+    const testFn = jest.fn(str => str + "!");
+    const pool = new ProcessPool({
+      test: function(str) {
+        return new Promise(resolve => {
+          setTimeout(() => resolve(testFn(str)), 100);
+        });
+      }
+    });
+    const stdin = new InputStream(source);
+    const stdout = new OutputStream(sink);
+
+    const pid = pool.createProcess(stdin, stdout, async std => {
+      const val = await std.test("hello world");
+      std.print(val);
+    });
+
+    pool.startProcess(pid);
+    await pool.waitProcess(pid);
+
+    expect(testFn.mock.calls).toEqual([["hello world"]]);
+    expect(sink.send.mock.calls).toEqual([["hello world!"]]);
   });
 });

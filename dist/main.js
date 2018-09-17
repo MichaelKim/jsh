@@ -38,7 +38,7 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
   let [cmd, ...args] = str.split(" ");
 
   while (cmd !== "quit") {
-    std.test(cmd + ": " + args.join(","));
+    std.print(cmd + ": " + args.join(","));
 
     // Spawn & Wait test
     // const pid2 = await std.spawn(async std2 => {

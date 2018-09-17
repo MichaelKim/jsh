@@ -18,7 +18,7 @@ export type OutputStream = {|
   +print: (str: string) => void
 |};
 
-export type ProcessBody = ((std: StdLib) => Promise<void>);
+export type ProcessBody = (std: StdLib) => Promise<void>;
 
 export type ProcessPoolType = {|
   +createProcess: (
@@ -54,6 +54,7 @@ export type StdLib = {|
   +start: (pid: PID) => void
 |};
 
+// From Worker to Process
 export type ProcessMessageData =
   | {|
       +type: "READ"
@@ -65,19 +66,52 @@ export type ProcessMessageData =
   | {|
       +type: "SPAWN",
       +body: string,
-      +source?: string,
-      +sink?: string
-    |}
-  | {|
-      +type: "SPAWN_MULTIPLE",
-      +bodies: string
+      +source: ?string,
+      +sink: ?string
     |}
   | {|
       +type: "WAIT",
       +value: PID
     |}
   | {|
+      +type: "SPAWN_MULTIPLE",
+      +bodies: string
+    |}
+  | {|
       +type: "START_OTHER",
       +value: PID
     |}
-  | {| +type: "FINISH" |};
+  | {|
+      +type: "GLOBAL",
+      +name: string,
+      +args: Array<any>
+    |}
+  | {|
+      +type: "FINISH"
+    |};
+
+// To Process to Worker
+export type WorkerMessageData =
+  | {|
+      +type: "START"
+    |}
+  | {|
+      +type: "SPAWN_RETURN",
+      +value: PID
+    |}
+  | {|
+      +type: "SPAWN_MULTIPLE_RETURN",
+      +value: Array<PID>
+    |}
+  | {|
+      +type: "WAIT_RETURN"
+    |}
+  | {|
+      +type: "READ_RETURN",
+      +value: string
+    |}
+  | {|
+      +type: "GLOBAL_RETURN",
+      +name: string,
+      +value: any
+    |};
