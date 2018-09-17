@@ -18,11 +18,13 @@ export type OutputStream = {|
   +print: (str: string) => void
 |};
 
+export type ProcessBody = ((std: StdLib) => Promise<void>) | string;
+
 export type ProcessPoolType = {|
   +createProcess: (
     stdin: InputStream,
     stdout: OutputStream,
-    body: ((std: StdLib) => Promise<void>) | string
+    body: ProcessBody
   ) => PID,
   +startProcess: (pid: PID) => void,
   +waitProcess: (pid: PID) => Promise<void>

@@ -1,4 +1,6 @@
-import type { Source, Sink, StdLib, PID } from "./types";
+// @flow
+
+import type { Source, Sink, StdLib, PID, ProcessBody } from "./types";
 
 type MessageEvent = {|
   +data: MessageData
@@ -24,20 +26,25 @@ type MessageData =
     |};
 
 // Start of web worker code
-(_pid, _body) => {
-  // let postMessage: (data: any) => void;
-  // let addEventListener: (
-  //   type: string,
-  //   callback: (e: MessageEvent) => void | Promise<void>
-  // ) => void = (a) => {};
+(_pid: PID, _body: string) => {
+  /*::
+  const self: {
+    postMessage: (data: any) => void,
+    addEventListener: (
+      type: "message",
+      callback: (e: MessageEvent) => (void | Promise<void>)
+    ) => void
+  };
+  const eval: string => Function;
+  */
 
   function debug(test) {
     console.log("FROM " + _pid + ":", test);
   }
 
   function InputStream(source) {
-    let buffer = [];
-    let readCallback = null;
+    let buffer: Array<string> = [];
+    let readCallback: ?(Promise<string> | string) => void = null;
 
     this.read = function() {
       return new Promise(resolve => {
@@ -47,7 +54,7 @@ type MessageData =
           resolve(str);
         } else {
           debug("inputstream: waiting read from callback");
-          postMessage({
+          self.postMessage({
             type: "READ"
           });
           readCallback = resolve;
@@ -55,7 +62,7 @@ type MessageData =
       });
     };
 
-    this.send = function(str) {
+    this.send = function(str: string) {
       debug('inputstream: received "' + str + '"');
       if (readCallback) {
         debug("inputstream: send to callback");
@@ -71,14 +78,14 @@ type MessageData =
   }
 
   function OutputStream(sink) {
-    this.print = function(str) {
+    this.print = function(str: string) {
       sink.send(str);
     };
   }
 
   const stdin = new InputStream({
     recieve: function(callback) {
-      addEventListener("message", e => {
+      self.addEventListener("message", (e: MessageEvent) => {
         if (e.data.type === "READ_RETURN") {
           const str = e.data.value;
           callback(str);
@@ -90,7 +97,7 @@ type MessageData =
   const stdout = new OutputStream({
     send: function(str) {
       debug("PRINTING " + str);
-      postMessage({
+      self.postMessage({
         type: "PRINT",
         value: str
       });
@@ -98,10 +105,10 @@ type MessageData =
   });
 
   let spawnCallback = null;
-  async function spawn(body, source, sink) {
+  async function spawn(body: ProcessBody, source: ?Source, sink: ?Sink) {
     return new Promise(resolve => {
       spawnCallback = resolve;
-      postMessage({
+      self.postMessage({
         type: "SPAWN",
         body: body.toString(),
         source: source ? serialize(source) : null,
@@ -111,10 +118,10 @@ type MessageData =
   }
 
   let waitCallback = null;
-  async function wait(pid) {
+  async function wait(pid: PID) {
     return new Promise(resolve => {
       waitCallback = resolve;
-      postMessage({
+      self.postMessage({
         type: "WAIT",
         value: pid
       });
@@ -122,18 +129,18 @@ type MessageData =
   }
 
   let spawnMultipleCallback = null;
-  function spawnMultiple(...bodies) {
+  function spawnMultiple(...bodies: Array<ProcessBody>) {
     return new Promise(resolve => {
       spawnMultipleCallback = resolve;
-      postMessage({
+      self.postMessage({
         type: "SPAWN_MULTIPLE",
         bodies: bodies.join("@@@")
       });
     });
   }
 
-  function start(pid) {
-    postMessage({
+  function start(pid: PID) {
+    self.postMessage({
       type: "START_OTHER",
       value: pid
     });
@@ -151,9 +158,9 @@ type MessageData =
     );
   }
 
-  addEventListener("message", async e => {
+  self.addEventListener("message", async (e: MessageEvent) => {
     if (e.data.type === "START") {
-      const body = eval("(" + _body + ")");
+      const body: ProcessBody = eval("(" + _body + ")");
       const std = {
         pid: _pid,
         read: stdin.read,
@@ -167,7 +174,7 @@ type MessageData =
         spawnMultiple: spawnMultiple
       };
       await body(std);
-      postMessage({
+      self.postMessage({
         type: "FINISH"
       });
     } else if (e.data.type === "SPAWN_RETURN") {

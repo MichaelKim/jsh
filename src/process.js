@@ -10,7 +10,8 @@ import type {
   ProcessType,
   ProcessMessageData,
   PID,
-  StdLib
+  StdLib,
+  ProcessBody
 } from "./types";
 
 function ProcessPool(): ProcessPoolType {
@@ -25,7 +26,7 @@ function ProcessPool(): ProcessPoolType {
     pid: PID,
     stdin: IS,
     stdout: OS,
-    body: ((std: StdLib) => Promise<void>) | string
+    body: ProcessBody
   ): ProcessType {
     let _finishCallback = null;
     const blob = new Blob([generateWebWorkerCode(pid, body)]);
