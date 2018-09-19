@@ -17,7 +17,7 @@ module.exports = {
         }
       },
       {
-        test: /src\/worker\.js$/,
+        test: /worker\.js$/,
         exclude: /node_modules/,
         use: {
           loader: path.resolve(__dirname, "loaders/worker-loader")

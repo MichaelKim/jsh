@@ -1,8 +1,46 @@
 <html>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #222;
+    }
+
+    #box {
+      width: 100%;
+      height: 100%;
+      padding: 5%;
+    }
+
+    #screen {
+      width: 100%;
+      height: 90%;
+      padding: 0 18px;
+      resize: none;
+      background-color: #666;
+      color: white;
+      border: 1px solid black;
+    }
+
+    #keyboard {
+      width: 100%;
+      height: 10%;
+      font-size: 1em;
+      padding: 10px;
+    }
+  </style>
 <body>
-  <textarea disabled style="width: 500px; height: 500px;" id="screen"></textarea>
-  <input id="keyboard" autofocus />
-  <input id="keyboard2" autofocus />
+  <div id="box">
+    <textarea disabled id="screen"></textarea>
+    <input id="keyboard" autofocus />
+  </div>
   <script type="text/javascript" src="jsh.js"></script>
   <script type="text/javascript" src="main.js"></script>
 </body>

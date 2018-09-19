@@ -1,15 +1,15 @@
 // From keyboard
 const source = {
   recieve: function(callback) {
-    const keyboard = document.getElementById("keyboard");
+    const keyboard = document.getElementById('keyboard');
     if (!keyboard || !(keyboard instanceof HTMLInputElement)) return;
 
-    keyboard.addEventListener("keypress", event => {
-      jsh.debug("mainInput: press " + event.key);
+    keyboard.addEventListener('keypress', event => {
+      jsh.debug('mainInput: press ' + event.key);
 
-      if (event.key === "Enter") {
+      if (event.key === 'Enter') {
         const text = keyboard.value;
-        keyboard.value = "";
+        keyboard.value = '';
         jsh.debug('mainInput: send "' + text + '"');
         callback(text);
       }
@@ -20,25 +20,53 @@ const source = {
 // To screen
 const sink = {
   send: function(str) {
-    const screen = document.getElementById("screen");
+    const screen = document.getElementById('screen');
     if (!screen || !(screen instanceof HTMLTextAreaElement)) return;
 
-    screen.innerHTML += "\n" + str;
+    screen.innerHTML += '\n' + str;
   }
 };
 
 const stdin = new jsh.InputStream(source);
 const stdout = new jsh.OutputStream(sink);
 
-const pool = new jsh.ProcessPool();
-const mainPID = pool.createProcess(stdin, stdout, async function(std) {
-  // Shell
-  std.print("RUNNING PROCESS: " + std.pid);
-  let str = await std.read();
-  let [cmd, ...args] = str.split(" ");
+const fileSystem = {};
+const globals = {
+  cat: function() {
+    return 5;
+  }
+};
 
-  while (cmd !== "quit") {
-    std.print(cmd + ": " + args.join(","));
+const pool = new jsh.ProcessPool(globals);
+
+const mainPID = pool.createProcess(stdin, stdout, async function(std) {
+  std.print('Hello world! Welcome to jsh.');
+
+  let str = await std.read();
+  let [cmd, ...args] = str.split(' ');
+
+  while (cmd !== 'quit') {
+    if (cmd === 'help') {
+      std.print('Available commands:');
+      std.print('help - displays this message');
+    }
+    if (Object.keys(globals).indexOf(cmd) === -1) {
+      std.print('Unknown command: ' + cmd);
+    } else {
+      const ret = await std[cmd](...args);
+      if (ret != null) {
+        std.print(ret);
+      }
+      const child = await std.spawn(async std2 => {
+        await std2.cat();
+      });
+
+      std.start(child);
+      await std.wait(child);
+    }
+
+    let str = await std.read();
+    [cmd, ...args] = str.split(' ');
 
     // Spawn & Wait test
     // const pid2 = await std.spawn(async std2 => {
@@ -105,30 +133,27 @@ const mainPID = pool.createProcess(stdin, stdout, async function(std) {
     // await std.wait(pid4);
 
     // Piping test
-    const pids = await std.spawnMultiple(
-      async std5 => {
-        const char5 = await std5.read();
-        std5.print("RUNNING CHILD PROCESS 5: " + std5.pid + " " + char5);
-      },
-      async std6 => {
-        const char6 = await std6.read();
-        std6.print("RUNNING CHILD PROCESS 6: " + std6.pid + " " + char6);
-      },
-      async std7 => {
-        const char7 = await std7.read();
-        std7.print("RUNNING CHILD PROCESS 7: " + std7.pid + " " + char7);
-      }
-    );
+    // const pids = await std.spawnMultiple(
+    //   async std5 => {
+    //     const char5 = await std5.read();
+    //     std5.print("RUNNING CHILD PROCESS 5: " + std5.pid + " " + char5);
+    //   },
+    //   async std6 => {
+    //     const char6 = await std6.read();
+    //     std6.print("RUNNING CHILD PROCESS 6: " + std6.pid + " " + char6);
+    //   },
+    //   async std7 => {
+    //     const char7 = await std7.read();
+    //     std7.print("RUNNING CHILD PROCESS 7: " + std7.pid + " " + char7);
+    //   }
+    // );
 
-    for (let i = 0; i < pids.length; i++) {
-      std.start(pids[i]);
-      debug("STARTED " + pids[i]);
-      await std.wait(pids[i]);
-      debug("FINISHED " + pids[i]);
-    }
-
-    let str = await std.read();
-    [cmd, ...args] = str.split(" ");
+    // for (let i = 0; i < pids.length; i++) {
+    //   std.start(pids[i]);
+    //   debug("STARTED " + pids[i]);
+    //   await std.wait(pids[i]);
+    //   debug("FINISHED " + pids[i]);
+    // }
   }
 });
 
