@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 export type Source = {|
   +recieve?: ((str: string) => void) => void

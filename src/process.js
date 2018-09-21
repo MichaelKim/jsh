@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 const { InputStream, OutputStream, debug } = require("./stdio");
 const workerCode: string = require("./worker");
@@ -73,12 +73,12 @@ function ProcessPool(
         const childSink = data.sink;
 
         let childStdin = stdin;
-        if (childSource) {
+        if (childSource != null) {
           childStdin = new InputStream(deserialize(childSource));
         }
 
         let childStdout = stdout;
-        if (childSink) {
+        if (childSink != null) {
           childStdout = new OutputStream(deserialize(childSink));
         }
 

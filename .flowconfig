@@ -10,3 +10,8 @@
 suppress_comment= \\(.\\|\n\\)*\\$FlowFixMe
 
 [strict]
+nonstrict-import
+unsafe-getters-setters
+untyped-import
+untyped-type-import
+sketchy-null
