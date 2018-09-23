@@ -125,7 +125,10 @@ function ProcessPool(
         const name = data.name;
         const args = data.args;
         if (globals[name]) {
-          const returnVal = await globals[name](...args);
+          const returnVal = await globals[name].apply(
+            { ...globals, read: stdin.read, print: stdout.print },
+            args
+          );
           worker.postMessage({
             type: "GLOBAL_RETURN",
             name: name,

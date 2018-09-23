@@ -236,4 +236,25 @@ describe("ProcessPool", () => {
     expect(testFn.mock.calls).toEqual([["hello world"]]);
     expect(sink.send.mock.calls).toEqual([["hello world!"]]);
   });
+
+  it("call global from global", async () => {
+    const pool = new ProcessPool({
+      factorial: async function(num) {
+        if (num > 1) return (await this.factorial(num - 1)) * num;
+        return 1;
+      }
+    });
+    const stdin = new InputStream(source);
+    const stdout = new OutputStream(sink);
+
+    const pid = pool.createProcess(stdin, stdout, async std => {
+      const val = await std.factorial(5);
+      std.print(val);
+    });
+
+    pool.startProcess(pid);
+    await pool.waitProcess(pid);
+
+    expect(sink.send.mock.calls).toEqual([[120]]);
+  })
 });
